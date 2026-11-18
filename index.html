@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SC 6 | Helm Chart & Health Probe Interactive Lab</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    :root {
+      --bg-app: #0b1120;
+      --bg-panel: #111827;
+      --bg-card: #1e293b;
+      --bg-code: #090d16;
+      --border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-dark: #0284c7;
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.14);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.14);
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.14);
+      --radius: 10px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'Fira Code', 'JetBrains Mono', Consolas, Monaco, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-app);
+      color: var(--text-main);
+      line-height: 1.55;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 6px;
+    }
+
+    h1 { font-size: 1.35rem; font-weight: 700; }
+    .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
+
+    .score-pill {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      text-align: right;
+      min-width: 170px;
+    }
+    .score-pill span { display: block; font-size: 0.75rem; color: var(--text-muted); }
+    .score-pill strong { font-size: 1.15rem; color: var(--accent); }
+
+    /* Navigation Tabs */
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .tab-btn {
+      background: var(--bg-panel);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { border-color: var(--accent); color: var(--text-main); }
+    .tab-btn.active {
+      background: var(--accent-dark);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .tab-status {
+      font-size: 0.75rem;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.3);
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Grid Layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 20px;
+    }
+    @media (max-width: 880px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .panel h2 {
+      font-size: 1.08rem;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .scenario-box {
+      background: rgba(56, 189, 248, 0.08);
+      border-left: 3px solid var(--accent);
+      padding: 12px 14px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      margin-bottom: 16px;
+      color: #e2e8f0;
+    }
+
+    /* Interactive YAML + Hotspots */
+    .yaml-editor {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      color: #cbd5e1;
+    }
+
+    .yaml-key { color: #7dd3fc; }
+    .yaml-val { color: #fde047; }
+    .yaml-comment { color: #64748b; font-style: italic; }
+
+    .hotspot-block {
+      border: 1px dashed transparent;
+      border-radius: 6px;
+      padding: 6px 8px;
+      margin: 4px 0;
+      transition: all 0.2s;
+      cursor: pointer;
+      position: relative;
+    }
+    .hotspot-block:hover, .hotspot-block.selected {
+      background: rgba(56, 189, 248, 0.09);
+      border-color: var(--accent);
+    }
+
+    .hotspot-tag {
+      float: right;
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: var(--bg-card);
+      color: var(--accent);
+      border: 1px solid var(--border);
+      padding: 1px 8px;
+      border-radius: 999px;
+    }
+
+    /* Controls */
+    .control-group {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .control-header label { font-weight: 600; font-size: 0.88rem; }
+    .budget-readout {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--bg-code);
+      color: var(--accent);
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .field label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    select, input[type="number"] {
+      width: 100%;
+      background: var(--bg-code);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+    }
+
+    /* Buttons */
+    .btn {
+      background: var(--accent-dark);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #0369a1; }
+    .btn-secondary {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+    }
+    .btn-secondary:hover { border-color: var(--accent); }
+
+    /* Simulation Timeline Output */
+    .sim-output {
+      margin-top: 14px;
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 0.84rem;
+    }
+    .timeline-bar {
+      height: 14px;
+      background: #1e293b;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 10px 0;
+      display: flex;
+    }
+    .bar-seg { height: 100%; transition: width 0.5s ease; }
+
+    .log-line {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+    }
+    .log-ok { color: var(--success); }
+    .log-warn { color: var(--warning); }
+    .log-err { color: var(--danger); }
+
+    .feedback-banner {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      display: none;
+    }
+    .feedback-banner.pass {
+      display: block;
+      background: var(--success-bg);
+      border: 1px solid var(--success);
+      color: #d1fae5;
+    }
+    .feedback-banner.fail {
+      display: block;
+      background: var(--danger-bg);
+      border: 1px solid var(--danger);
+      color: #fee2e2;
+    }
+
+    /* Activity 2: Drag and Drop Sequencer */
+    .dnd-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 820px) {
+      .dnd-layout { grid-template-columns: 1fr; }
+    }
+
+    .card-pool, .drop-slots {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .drag-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      cursor: grab;
+      transition: transform 0.15s, border-color 0.2s;
+      user-select: none;
+    }
+    .drag-card:hover { border-color: var(--accent); }
+    .drag-card.dragging { opacity: 0.5; }
+    .drag-card code {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent);
+      background: var(--bg-code);
+      padding: 5px 8px;
+      border-radius: 5px;
+      margin-top: 6px;
+    }
+
+    .slot-row {
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .slot-num {
+      width: 34px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+    .drop-zone {
+      flex: 1;
+      min-height: 68px;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.5);
+      transition: all 0.2s;
+    }
+    .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.1);
+    }
+    .drop-zone .placeholder {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .drop-zone.correct { border-color: var(--success); border-style: solid; }
+    .drop-zone.incorrect { border-color: var(--danger); border-style: solid; }
+
+    .hotspot-inspector {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 0.84rem;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <span class="badge">SC 6 • Module 1 Interactive Practice (LO1)</span>
+        <h1>Deploy &amp; Trace Services: Helm Charts &amp; Inference Health Probes</h1>
+        <p class="subtitle">Configure cold-start probe budgets for GPU inference pods and sequence the AKS Helm deployment workflow.</p>
+      </div>
+      <div class="score-pill">
+        <span>Lab Mastery Progress</span>
+        <strong id="mastery-score">0 / 2 Completed</strong>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab-btn active" data-tab="act1" role="tab" aria-selected="true">
+        1. Probe Configurator &amp; Pod Simulator
+        <span class="tab-status" id="status-act1">Pending</span>
+      </button>
+      <button class="tab-btn" data-tab="act2" role="tab" aria-selected="false">
+        2. Helm Rollout Workflow Sequencer
+        <span class="tab-status" id="status-act2">Pending</span>
+      </button>
+    </nav>
+
+    <!-- ACTIVITY 1: HOTSPOT & PROBE SIMULATOR -->
+    <section id="act1" class="view active">
+      <div class="grid-2">
+        <div class="panel">
+          <h2>📄 Inspect &amp; Configure <code>templates/deployment.yaml</code></h2>
+          <div class="scenario-box">
+            <strong>Scenario:</strong> Your image-classification model takes <strong>120 seconds</strong> on a cold start to load weights into GPU VRAM. Once loaded, it serves traffic on <code>/ready</code> and reports process health on <code>/healthz</code>. Click any probe block below to inspect its role, then tune the parameters on the right so the pod survives startup without entering <code>CrashLoopBackOff</code>.
+          </div>
+
+          <div class="yaml-editor" aria-label="Deployment YAML Preview">
+            <div><span class="yaml-key">spec:</span></div>
+            <div>&nbsp;&nbsp;<span class="yaml-key">containers:</span></div>
+            <div>&nbsp;&nbsp;- <span class="yaml-key">name:</span> <span class="yaml-val">inference-service</span></div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">image:</span> <span class="yaml-val">"{{ .Values.image.repository }}:{{ .Values.image.tag }}"</span></div>
+
+            <!-- Hotspot 1: Startup Probe -->
+            <div class="hotspot-block selected" data-probe="startup" tabindex="0">
+              <span class="hotspot-tag">Hotspot 1: Cold-Start Guard</span>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">startupProbe:</span></div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">httpGet:</span> { <span class="yaml-key">path:</span> <span class="yaml-val">/healthz</span>, <span class="yaml-key">port:</span> <span class="yaml-val">8080</span> }</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">periodSeconds:</span> <span class="yaml-val" id="yaml-sp-period">10</span></div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">failureThreshold:</span> <span class="yaml-val" id="yaml-sp-fail">6</span> <span class="yaml-comment"># Budget = <span id="yaml-sp-budget">60</span>s</span></div>
+            </div>
+
+            <!-- Hotspot 2: Readiness Probe -->
+            <div class="hotspot-block" data-probe="readiness" tabindex="0">
+              <span class="hotspot-tag">Hotspot 2: Traffic Gate</span>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">readinessProbe:</span></div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">httpGet:</span> { <span class="yaml-key">path:</span> <span class="yaml-val" id="yaml-rp-path">/ready</span>, <span class="yaml-key">port:</span> <span class="yaml-val">8080</span> }</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">periodSeconds:</span> <span class="yaml-val">5</span></div>
+            </div>
+
+            <!-- Hotspot 3: Liveness Probe -->
+            <div class="hotspot-block" data-probe="liveness" tabindex="0">
+              <span class="hotspot-tag">Hotspot 3: Hang Recovery</span>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">livenessProbe:</span></div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">httpGet:</span> { <span class="yaml-key">path:</span> <span class="yaml-val">/healthz</span>, <span class="yaml-key">port:</span> <span class="yaml-val">8080</span> }</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">initialDelaySeconds:</span> <span class="yaml-val" id="yaml-lp-delay">0</span></div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">periodSeconds:</span> <span class="yaml-val">15</span></div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="yaml-key">timeoutSeconds:</span> <span class="yaml-val" id="yaml-lp-timeout">1</span></div>
+            </div>
+          </div>
+
+          <div class="hotspot-inspector" id="hotspot-info">
+            <strong>startupProbe:</strong> Temporarily disables liveness and readiness checks while the container loads multi-gigabyte model weights. Total startup budget = <code>failureThreshold × periodSeconds</code>.
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>⚙️ Tune Probe Parameters &amp; Simulate Rollout</h2>
+
+          <div class="control-group">
+            <div class="control-header">
+              <label>1. Startup Probe Budget (Must exceed 120s load)</label>
+              <span class="budget-readout" id="budget-badge">60s budget</span>
+            </div>
+            <div class="input-row">
+              <div class="field">
+                <label for="sp-period">periodSeconds</label>
+                <select id="sp-period">
+                  <option value="5">5s</option>
+                  <option value="10" selected>10s</option>
+                  <option value="15">15s</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="sp-fail">failureThreshold</label>
+                <select id="sp-fail">
+                  <option value="6" selected>6 (60s @ 10s)</option>
+                  <option value="10">10 (100s @ 10s)</option>
+                  <option value="18">18 (180s @ 10s)</option>
+                  <option value="30">30 (300s @ 10s)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <label>2. Readiness Probe Endpoint</label>
+              <span class="budget-readout">Traffic Routing</span>
+            </div>
+            <div class="field">
+              <label for="rp-path">HTTP GET Path (Separate "not ready" from "hung")</label>
+              <select id="rp-path">
+                <option value="/ready" selected>/ready (Dedicated readiness route)</option>
+                <option value="/healthz">/healthz (Same as liveness)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <label>3. Liveness Probe Post-Startup Guard</label>
+              <span class="budget-readout">Hang Detection</span>
+            </div>
+            <div class="input-row">
+              <div class="field">
+                <label for="lp-delay">initialDelaySeconds</label>
+                <select id="lp-delay">
+                  <option value="0" selected>0s (Hands off cleanly after startup)</option>
+                  <option value="180">180s (Leaves pod unguarded for 3m)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="lp-timeout">timeoutSeconds</label>
+                <select id="lp-timeout">
+                  <option value="1" selected>1s (May false-fail under GPU load)</option>
+                  <option value="3">3s (Allows busy inference latency)</option>
+                  <option value="5">5s (Safe buffer for busy server)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn" id="run-sim-btn" style="width:100%;">▶ Deploy to AKS Test Namespace &amp; Simulate Pod</button>
+
+          <div class="sim-output" id="sim-output" aria-live="polite">
+            <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-muted);">
+              <span>Pod Lifecycle Simulation (0s → 180s)</span>
+              <span id="pod-state-label">Awaiting deployment...</span>
+            </div>
+            <div class="timeline-bar">
+              <div class="bar-seg" id="seg-load" style="width:0%; background:var(--accent);"></div>
+              <div class="bar-seg" id="seg-serve" style="width:0%; background:var(--success);"></div>
+            </div>
+            <div id="sim-logs">
+              <div class="log-line" style="color:var(--text-muted);">Click "Deploy to AKS Test Namespace" to test your probe configuration against a 120s cold start and a 2.2s inference spike.</div>
+            </div>
+          </div>
+
+          <div class="feedback-banner" id="act1-feedback"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACTIVITY 2: DRAG & DROP DEPLOYMENT SEQUENCER -->
+    <section id="act2" class="view">
+      <div class="panel">
+        <h2>🚀 Step-by-Step: Helm Chart Build &amp; AKS Rollout Sequencer</h2>
+        <div class="scenario-box">
+          <strong>Instructions:</strong> Drag each deployment task card from the left pool into its proper chronological order (Steps 1 to 6) on the right—from scaffolding the chart to verifying the rollout in an isolated AKS namespace. <em>(Tip: You can also click a card, then click a target slot.)</em>
+        </div>
+
+        <div class="dnd-layout">
+          <div>
+            <h3 style="font-size:0.92rem; color:var(--text-muted); margin-bottom:10px;">Available Deployment Tasks</h3>
+            <div class="card-pool" id="card-pool"></div>
+          </div>
+
+          <div>
+            <h3 style="font-size:0.92rem; color:var(--text-muted); margin-bottom:10px;">Ordered Deployment Pipeline (Steps 1–6)</h3>
+            <div class="drop-slots" id="drop-slots"></div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:12px; margin-top:18px; flex-wrap:wrap;">
+          <button class="btn" id="check-order-btn">✔ Validate Pipeline Order</button>
+          <button class="btn btn-secondary" id="reset-order-btn">↺ Reset Cards</button>
+        </div>
+
+        <div class="feedback-banner" id="act2-feedback"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // State tracking
+    const state = {
+      act1Complete: false,
+      act2Complete: false,
+      selectedCardId: null
+    };
+
+    function updateMastery() {
+      const count = (state.act1Complete ? 1 : 0) + (state.act2Complete ? 1 : 0);
+      document.getElementById('mastery-score').textContent = `${count} / 2 Completed`;
+      if (state.act1Complete) {
+        const s1 = document.getElementById('status-act1');
+        s1.textContent = 'Passed';
+        s1.style.background = 'rgba(16, 185, 129, 0.25)';
+        s1.style.color = '#6ee7b7';
+      }
+      if (state.act2Complete) {
+        const s2 = document.getElementById('status-act2');
+        s2.textContent = 'Passed';
+        s2.style.background = 'rgba(16, 185, 129, 0.25)';
+        s2.style.color = '#6ee7b7';
+      }
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected', 'false');
+        });
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // --- ACTIVITY 1: HOTSPOTS & SIMULATOR ---
+    const hotspotDescriptions = {
+      startup: '<strong>startupProbe:</strong> Temporarily disables liveness and readiness checks while the container loads multi-gigabyte model weights. Total startup budget = <code>failureThreshold × periodSeconds</code> (must exceed worst-case 120s load time).',
+      readiness: '<strong>readinessProbe:</strong> Controls whether Kubernetes routes inference traffic to the pod. Using a dedicated <code>/ready</code> endpoint prevents "model warming up" from being confused with a dead container.',
+      liveness: '<strong>livenessProbe:</strong> Detects wedged/hung inference workers after startup completes. Keep <code>initialDelaySeconds: 0</code> (since startupProbe already guarded boot) and set <code>timeoutSeconds >= 3</code> so a busy GPU server does not trigger false restarts.'
+    };
+
+    document.querySelectorAll('.hotspot-block').forEach(block => {
+      block.addEventListener('click', () => {
+        document.querySelectorAll('.hotspot-block').forEach(b => b.classList.remove('selected'));
+        block.classList.add('selected');
+        document.getElementById('hotspot-info').innerHTML = hotspotDescriptions[block.dataset.probe];
+      });
+    });
+
+    const spPeriodEl = document.getElementById('sp-period');
+    const spFailEl = document.getElementById('sp-fail');
+    const rpPathEl = document.getElementById('rp-path');
+    const lpDelayEl = document.getElementById('lp-delay');
+    const lpTimeoutEl = document.getElementById('lp-timeout');
+
+    function syncYamlPreview() {
+      const p = parseInt(spPeriodEl.value, 10);
+      const f = parseInt(spFailEl.value, 10);
+      const budget = p * f;
+
+      document.getElementById('yaml-sp-period').textContent = p;
+      document.getElementById('yaml-sp-fail').textContent = f;
+      document.getElementById('yaml-sp-budget').textContent = budget;
+      document.getElementById('budget-badge').textContent = `${budget}s budget`;
+      document.getElementById('yaml-rp-path').textContent = rpPathEl.value;
+      document.getElementById('yaml-lp-delay').textContent = lpDelayEl.value;
+      document.getElementById('yaml-lp-timeout').textContent = lpTimeoutEl.value;
+    }
+
+    [spPeriodEl, spFailEl, rpPathEl, lpDelayEl, lpTimeoutEl].forEach(el => {
+      el.addEventListener('change', syncYamlPreview);
+    });
+    syncYamlPreview();
+
+    document.getElementById('run-sim-btn').addEventListener('click', () => {
+      const p = parseInt(spPeriodEl.value, 10);
+      const f = parseInt(spFailEl.value, 10);
+      const budget = p * f;
+      const rpPath = rpPathEl.value;
+      const lpDelay = parseInt(lpDelayEl.value, 10);
+      const lpTimeout = parseInt(lpTimeoutEl.value, 10);
+
+      const logsEl = document.getElementById('sim-logs');
+      const stateLabel = document.getElementById('pod-state-label');
+      const segLoad = document.getElementById('seg-load');
+      const segServe = document.getElementById('seg-serve');
+      const feedback = document.getElementById('act1-feedback');
+
+      logsEl.innerHTML = '';
+      const addLog = (msg, cls) => {
+        const div = document.createElement('div');
+        div.className = `log-line ${cls}`;
+        div.textContent = msg;
+        logsEl.appendChild(div);
+      };
+
+      addLog('[00:00] Pod scheduled on AKS GPU node. Loading 6.4 GiB model into VRAM (takes 120s)...', 'log-ok');
+
+      // Case 1: Startup probe budget too low
+      if (budget <= 120) {
+        segLoad.style.width = `${Math.min(65, (budget / 180) * 100)}%`;
+        segLoad.style.background = 'var(--danger)';
+        segServe.style.width = '0%';
+        stateLabel.textContent = 'STATUS: CrashLoopBackOff';
+        stateLabel.style.color = 'var(--danger)';
+
+        addLog(`[00:${budget}] startupProbe failed ${f} times (${budget}s budget exhausted before 120s load finished).`, 'log-err');
+        addLog(`[00:${budget}] kubelet killed container mid-load -> CrashLoopBackOff!`, 'log-err');
+
+        feedback.className = 'feedback-banner fail';
+        feedback.innerHTML = `<strong>Rollout Failed (CrashLoopBackOff):</strong> Your startup probe budget is <code>${f} × ${p}s = ${budget}s</code>, which is shorter than the 120s model load time. Increase <code>failureThreshold</code> or <code>periodSeconds</code> so the budget exceeds 120s.`;
+        return;
+      }
+
+      // Startup succeeded at 120s
+      segLoad.style.width = '66%';
+      segLoad.style.background = 'var(--accent)';
+      addLog(`[02:00] Model weights loaded into VRAM! startupProbe succeeded within ${budget}s budget.`, 'log-ok');
+
+      // Case 2: Inflated liveness initialDelaySeconds
+      if (lpDelay > 0) {
+        segServe.style.width = '34%';
+        segServe.style.background = 'var(--warning)';
+        stateLabel.textContent = 'STATUS: Running (Unguarded!)';
+        stateLabel.style.color = 'var(--warning)';
+
+        addLog(`[02:05] Warning: livenessProbe is sleeping for initialDelaySeconds=${lpDelay}s.`, 'log-warn');
+        addLog('[03:10] Inference worker thread deadlocked, but livenessProbe has not started yet—pod stays broken!', 'log-err');
+
+        feedback.className = 'feedback-banner fail';
+        feedback.innerHTML = `<strong>Suboptimal Pattern Detected:</strong> Because <code>startupProbe</code> already absorbs the 120s load window, setting <code>livenessProbe.initialDelaySeconds</code> to ${lpDelay}s leaves the container unguarded during normal serving. Set <code>initialDelaySeconds: 0</code> so liveness takes over immediately after startup.`;
+        return;
+      }
+
+      // Case 3: Liveness timeout too tight
+      if (lpTimeout < 3) {
+        segServe.style.width = '34%';
+        segServe.style.background = 'var(--danger)';
+        stateLabel.textContent = 'STATUS: False Restart';
+        stateLabel.style.color = 'var(--danger)';
+
+        addLog('[02:15] Heavy batch inference spike caused /healthz response to take 2.2s.', 'log-warn');
+        addLog(`[02:16] livenessProbe timed out at ${lpTimeout}s and unnecessarily restarted a healthy model pod!`, 'log-err');
+
+        feedback.className = 'feedback-banner fail';
+        feedback.innerHTML = `<strong>False-Positive Restart:</strong> Busy AI inference servers frequently exceed the default 1s probe timeout during batch execution. Set <code>livenessProbe.timeoutSeconds</code> to <code>3</code> or <code>5</code> seconds.`;
+        return;
+      }
+
+      // Case 4: Shared readiness/liveness path warning vs full pass
+      segServe.style.width = '34%';
+      segServe.style.background = 'var(--success)';
+      stateLabel.textContent = 'STATUS: Running (READY 1/1)';
+      stateLabel.style.color = 'var(--success)';
+
+      addLog(`[02:02] livenessProbe active immediately (initialDelaySeconds: 0, timeoutSeconds: ${lpTimeout}s).`, 'log-ok');
+      if (rpPath !== '/ready') {
+        addLog('[02:05] Note: Using /ready instead of /healthz for readinessProbe isolates traffic gating from restarts.', 'log-warn');
+      } else {
+        addLog('[02:05] readinessProbe polling dedicated /ready endpoint. Service routing live traffic!', 'log-ok');
+      }
+      addLog('[02:45] GPU inference spike (2.2s) absorbed cleanly—rollout healthy.', 'log-ok');
+
+      feedback.className = 'feedback-banner pass';
+      feedback.innerHTML = `<strong>Rollout Validated (READY 1/1)!</strong> Your startup probe (${budget}s budget) protected the 120s GPU weight load, handed off cleanly to liveness (<code>initialDelaySeconds: 0</code>, <code>timeoutSeconds: ${lpTimeout}s</code>), and kept the pod healthy under load.`;
+      state.act1Complete = true;
+      updateMastery();
+    });
+
+    // --- ACTIVITY 2: HELM WORKFLOW SEQUENCER ---
+    const stepsData = [
+      {
+        id: 'step-1',
+        order: 1,
+        title: 'Scaffold the Helm Chart Skeleton',
+        cmd: 'helm create inference-chart',
+        desc: 'Generates Chart.yaml, values.yaml, and the templates/ directory.'
+      },
+      {
+        id: 'step-2',
+        order: 2,
+        title: 'Configure Environment Values',
+        cmd: 'values.yaml → replicaCount, image.tag, nvidia.com/gpu, modelPath',
+        desc: 'Replaces scaffold defaults with inference-specific settings so templates stay reusable.'
+      },
+      {
+        id: 'step-3',
+        order: 3,
+        title: 'Add Health Probes to Deployment Template',
+        cmd: 'templates/deployment.yaml → startupProbe, readinessProbe, livenessProbe',
+        desc: 'Protects slow GPU model initialization before handing off to liveness checks.'
+      },
+      {
+        id: 'step-4',
+        order: 4,
+        title: 'Lint the Chart for Syntax & Schema Errors',
+        cmd: 'helm lint inference-chart',
+        desc: 'Validates template rendering and YAML structure before touching the cluster.'
+      },
+      {
+        id: 'step-5',
+        order: 5,
+        title: 'Deploy to an Isolated AKS Test Namespace',
+        cmd: 'helm install inference-test inference-chart --namespace sc6-test --create-namespace',
+        desc: 'Installs the release in a dedicated namespace to contain blast radius.'
+      },
+      {
+        id: 'step-6',
+        order: 6,
+        title: 'Verify Pod Readiness & Rollout Status',
+        cmd: 'kubectl rollout status deployment/inference-test --namespace sc6-test',
+        desc: 'Confirms READY 1/1 and Running status without CrashLoopBackOff events.'
+      }
+    ];
+
+    function shuffle(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function renderSequencer() {
+      const pool = document.getElementById('card-pool');
+      const slots = document.getElementById('drop-slots');
+      pool.innerHTML = '';
+      slots.innerHTML = '';
+      document.getElementById('act2-feedback').className = 'feedback-banner';
+
+      const shuffled = shuffle(stepsData);
+      shuffled.forEach(item => {
+        const card = createCardElement(item);
+        pool.appendChild(card);
+      });
+
+      for (let i = 1; i <= stepsData.length; i++) {
+        const row = document.createElement('div');
+        row.className = 'slot-row';
+        row.innerHTML = `
+          <div class="slot-num">${i}</div>
+          <div class="drop-zone" data-slot="${i}">
+            <span class="placeholder">Drop Step ${i} here</span>
+          </div>
+        `;
+        const zone = row.querySelector('.drop-zone');
+
+        zone.addEventListener('dragover', e => {
+          e.preventDefault();
+          zone.classList.add('drag-over');
+        });
+        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+        zone.addEventListener('drop', e => {
+          e.preventDefault();
+          zone.classList.remove('drag-over');
+          const cardId = e.dataTransfer.getData('text/plain');
+          placeCardInZone(cardId, zone);
+        });
+
+        // Click-to-place accessibility support
+        zone.addEventListener('click', () => {
+          if (state.selectedCardId) {
+            placeCardInZone(state.selectedCardId, zone);
+            state.selectedCardId = null;
+            document.querySelectorAll('.drag-card').forEach(c => c.style.outline = 'none');
+          }
+        });
+
+        slots.appendChild(row);
+      }
+    }
+
+    function createCardElement(item) {
+      const card = document.createElement('div');
+      card.className = 'drag-card';
+      card.draggable = true;
+      card.id = item.id;
+      card.dataset.order = item.order;
+      card.innerHTML = `
+        <strong>${item.title}</strong>
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">${item.desc}</div>
+        <code>${item.cmd}</code>
+      `;
+
+      card.addEventListener('dragstart', e => {
+        card.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', item.id);
+      });
+      card.addEventListener('dragend', () => card.classList.remove('dragging'));
+
+      card.addEventListener('click', e => {
+        e.stopPropagation();
+        document.querySelectorAll('.drag-card').forEach(c => c.style.outline = 'none');
+        state.selectedCardId = item.id;
+        card.style.outline = '2px solid var(--accent)';
+      });
+
+      return card;
+    }
+
+    function placeCardInZone(cardId, zone) {
+      const card = document.getElementById(cardId);
+      if (!card) return;
+      const pool = document.getElementById('card-pool');
+
+      // If zone already has a card, return it to pool
+      const existingCard = zone.querySelector('.drag-card');
+      if (existingCard) {
+        pool.appendChild(existingCard);
+      }
+
+      const placeholder = zone.querySelector('.placeholder');
+      if (placeholder) placeholder.remove();
+
+      zone.classList.remove('correct', 'incorrect');
+      zone.appendChild(card);
+    }
+
+    // Allow dragging cards back to pool
+    const poolEl = document.getElementById('card-pool');
+    poolEl.addEventListener('dragover', e => e.preventDefault());
+    poolEl.addEventListener('drop', e => {
+      e.preventDefault();
+      const cardId = e.dataTransfer.getData('text/plain');
+      const card = document.getElementById(cardId);
+      if (!card) return;
+      const prevParent = card.parentElement;
+      poolEl.appendChild(card);
+      if (prevParent && prevParent.classList.contains('drop-zone')) {
+        prevParent.classList.remove('correct', 'incorrect');
+        prevParent.innerHTML = `<span class="placeholder">Drop Step ${prevParent.dataset.slot} here</span>`;
+      }
+    });
+
+    document.getElementById('check-order-btn').addEventListener('click', () => {
+      const zones = document.querySelectorAll('.drop-zone');
+      const feedback = document.getElementById('act2-feedback');
+      let placedCount = 0;
+      let correctCount = 0;
+
+      zones.forEach(zone => {
+        const expectedOrder = parseInt(zone.dataset.slot, 10);
+        const card = zone.querySelector('.drag-card');
+        zone.classList.remove('correct', 'incorrect');
+
+        if (card) {
+          placedCount++;
+          const actualOrder = parseInt(card.dataset.order, 10);
+          if (actualOrder === expectedOrder) {
+            zone.classList.add('correct');
+            correctCount++;
+          } else {
+            zone.classList.add('incorrect');
+          }
+        }
+      });
+
+      if (placedCount < stepsData.length) {
+        feedback.className = 'feedback-banner fail';
+        feedback.innerHTML = `<strong>Incomplete Sequence:</strong> Place all 6 workflow cards into the numbered slots before validating (${placedCount}/6 placed).`;
+        return;
+      }
+
+      if (correctCount === stepsData.length) {
+        feedback.className = 'feedback-banner pass';
+        feedback.innerHTML = `<strong>Pipeline Verified (6/6 Correct)!</strong> You followed the exact safe deployment lifecycle: scaffold → parameterize values → configure probes → lint locally → deploy to an isolated AKS namespace → verify rollout status.`;
+        state.act2Complete = true;
+        updateMastery();
+      } else {
+        feedback.className = 'feedback-banner fail';
+        feedback.innerHTML = `<strong>${correctCount} of 6 Steps in the Right Position:</strong> Review the highlighted red slots. Remember: configure <code>values.yaml</code> and probes before running <code>helm lint</code>, and always lint before running <code>helm install</code>.`;
+      }
+    });
+
+    document.getElementById('reset-order-btn').addEventListener('click', renderSequencer);
+
+    // Initialize Activity 2
+    renderSequencer();
+  </script>
+</body>
+</html>
